@@ -1,0 +1,191 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  /* Batcher's palette is cooler and greener than a typical dark chat app:
+     near-black slate with a teal accent, because the product is about
+     throughput rather than conversation. */
+  background-color: #07080a;
+  color: #e4e4e7;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- Scrollbars ---------------------------------------------------------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* --- Answer typography --------------------------------------------------- */
+.batch-markdown {
+  font-size: 0.9rem;
+  line-height: 1.68;
+  color: #d4d4d8;
+  word-break: break-word;
+}
+
+.batch-markdown > *:first-child {
+  margin-top: 0;
+}
+
+.batch-markdown > *:last-child {
+  margin-bottom: 0;
+}
+
+.batch-markdown p {
+  margin: 0.6rem 0;
+}
+
+.batch-markdown h1,
+.batch-markdown h2,
+.batch-markdown h3,
+.batch-markdown h4 {
+  margin: 1.1rem 0 0.45rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #fafafa;
+}
+
+.batch-markdown h1 {
+  font-size: 1.25rem;
+}
+.batch-markdown h2 {
+  font-size: 1.0625rem;
+}
+.batch-markdown h3 {
+  font-size: 0.9375rem;
+}
+
+.batch-markdown ul,
+.batch-markdown ol {
+  margin: 0.6rem 0;
+  padding-left: 1.4rem;
+}
+
+.batch-markdown ul {
+  list-style: disc;
+}
+.batch-markdown ol {
+  list-style: decimal;
+}
+
+.batch-markdown li {
+  margin: 0.2rem 0;
+}
+
+.batch-markdown li::marker {
+  color: rgba(45, 212, 191, 0.55);
+}
+
+.batch-markdown a {
+  color: #5eead4;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.batch-markdown blockquote {
+  margin: 0.7rem 0;
+  border-left: 3px solid rgba(45, 212, 191, 0.3);
+  padding-left: 0.9rem;
+  color: #a1a1aa;
+}
+
+.batch-markdown table {
+  margin: 0.7rem 0;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.batch-markdown th,
+.batch-markdown td {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.45rem 0.65rem;
+  text-align: left;
+}
+
+.batch-markdown th {
+  background-color: rgba(255, 255, 255, 0.03);
+  font-weight: 600;
+  color: #fafafa;
+}
+
+.batch-markdown hr {
+  margin: 1.1rem 0;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Inline code */
+.batch-markdown :not(pre) > code {
+  background-color: rgba(45, 212, 191, 0.08);
+  border: 1px solid rgba(45, 212, 191, 0.12);
+  border-radius: 0.3rem;
+  padding: 0.1rem 0.32rem;
+  font-family: var(--font-mono);
+  font-size: 0.84em;
+  color: #99f6e4;
+}
+
+/* Code blocks */
+.batch-markdown pre {
+  margin: 0.8rem 0;
+  overflow-x: auto;
+  border-radius: 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background-color: #0b0d10;
+  padding: 0.9rem;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.batch-markdown pre code {
+  font-family: var(--font-mono);
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+}
+
+/* --- Streaming caret (teal, thin — a cursor, not a chat bubble) ---------- */
+.batch-caret::after {
+  content: "";
+  display: inline-block;
+  width: 0.4rem;
+  height: 1em;
+  margin-left: 0.14rem;
+  vertical-align: text-bottom;
+  background-color: #2dd4bf;
+  border-radius: 1px;
+  animation: batch-blink 1s steps(2, start) infinite;
+}
+
+@keyframes batch-blink {
+  to {
+    visibility: hidden;
+  }
+}
