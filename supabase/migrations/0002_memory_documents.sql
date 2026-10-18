@@ -320,7 +320,9 @@ as $$
         select count(*)
         from terms t
         where lower(c.content) like '%' || t.word || '%'
-      )::double precision / (select count(*) from terms) as score
+      -- nullif guards the division: a query of only short words ("is it")
+      -- leaves `terms` empty, and x / 0 would raise instead of returning nothing.
+      )::double precision / nullif((select count(*) from terms), 0) as score
     from public.document_chunks c
     join public.documents d on d.id = c.document_id
     where d.workspace_id = target_workspace
