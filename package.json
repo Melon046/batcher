@@ -1,13 +1,14 @@
 {
   "name": "batcher",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "A shared AI workspace for two co-builders — ask in batches, work from one thread.",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:chunk": "tsc scripts/check-chunk.ts --outDir .tmpcheck --module commonjs --target es2022 --skipLibCheck --esModuleInterop && node .tmpcheck/scripts/check-chunk.js"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.135",
@@ -17,6 +18,7 @@
     "ai": "^6.0.309",
     "highlight.js": "^11.12.0",
     "next": "15.5.28",
+    "pdfjs-dist": "^4.10.38",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-markdown": "^10.1.0",
