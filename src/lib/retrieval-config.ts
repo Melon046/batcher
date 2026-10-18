@@ -40,7 +40,7 @@ export const EMBEDDING_DIMENSIONS = 768;
 export const EMBEDDING_MODEL_ID =
   process.env.BATCHER_EMBEDDING_MODEL?.trim() || "gemini-embedding-001";
 
-/** How many document chunks to retrieve per batch question. */
+/** How many document chunks to retrieve per batch. */
 export const RETRIEVAL_CHUNK_COUNT = clampInt(
   process.env.BATCHER_RETRIEVAL_CHUNKS ?? 4,
   0,
@@ -48,7 +48,7 @@ export const RETRIEVAL_CHUNK_COUNT = clampInt(
   4,
 );
 
-/** How many remembered facts to retrieve per batch question. */
+/** How many remembered facts to retrieve per batch. */
 export const RETRIEVAL_MEMORY_COUNT = clampInt(
   process.env.BATCHER_RETRIEVAL_MEMORIES ?? 3,
   0,

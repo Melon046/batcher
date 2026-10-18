@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { parseBatch } from "@/lib/batch";
-import type { BatchEvent, BatchItem, Thread } from "@/lib/types";
+import type { BatchEvent, BatchItem, Thread, SourceRef } from "@/lib/types";
 import { ThreadRail } from "./thread-rail";
 import { BatchComposer } from "./batch-composer";
 import { BatchResults } from "./batch-results";
+import { KnowledgePanel } from "./knowledge-panel";
 
 interface Props {
   workspaceId: string;
@@ -42,6 +43,8 @@ export function BatchWorkspace({
   const [error, setError] = useState<string | null>(null);
   const [railOpen, setRailOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [knowledgeOpen, setKnowledgeOpen] = useState(false);
+  const [sources, setSources] = useState<SourceRef[]>([]);
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -71,6 +74,9 @@ export function BatchWorkspace({
       setActiveThreadId(id);
       setRailOpen(false);
       setError(null);
+      // Sources belong to a batch, not to a thread — clear them so an old
+      // batch's chips do not appear above a different thread's answers.
+      setSources([]);
 
       const { data, error: loadError } = await supabase
         .from("messages")
@@ -114,6 +120,7 @@ export function BatchWorkspace({
     abortRef.current?.abort();
     setActiveThreadId(null);
     setItems([]);
+    setSources([]);
     setInput("");
     setError(null);
     setRailOpen(false);
@@ -160,6 +167,7 @@ export function BatchWorkspace({
 
     setError(null);
     setRunning(true);
+    setSources([]);
 
     // Show every item immediately in "queued", so the user sees the whole
     // shape of the batch before the first token arrives.
@@ -219,12 +227,12 @@ export function BatchWorkspace({
         while (newline !== -1) {
           const line = buffer.slice(0, newline).trim();
           buffer = buffer.slice(newline + 1);
-          if (line) applyEvent(line, setItems);
+          if (line) applyEvent(line, setItems, setSources);
           newline = buffer.indexOf("\n");
         }
       }
 
-      if (buffer.trim()) applyEvent(buffer.trim(), setItems);
+      if (buffer.trim()) applyEvent(buffer.trim(), setItems, setSources);
       await loadThreads();
     } catch (err) {
       const isAbort = err instanceof Error && err.name === "AbortError";
@@ -310,6 +318,13 @@ export function BatchWorkspace({
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setKnowledgeOpen(true)}
+              className="rounded-lg border border-white/[0.08] px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-white/5 hover:text-white"
+            >
+              Knowledge
+            </button>
             <span className="hidden rounded-full border border-white/[0.07] bg-white/[0.03] px-2.5 py-1 text-[11px] text-zinc-500 sm:inline">
               Gemini Flash → Groq
             </span>
@@ -332,6 +347,7 @@ export function BatchWorkspace({
         <BatchResults
           items={items}
           running={running}
+          sources={sources}
           onSuggestion={(text) => setInput(text)}
         />
 
@@ -345,6 +361,12 @@ export function BatchWorkspace({
           maxItems={MAX_ITEMS}
         />
       </div>
+
+      <KnowledgePanel
+        workspaceId={workspaceId}
+        open={knowledgeOpen}
+        onClose={() => setKnowledgeOpen(false)}
+      />
     </div>
   );
 }
@@ -353,6 +375,7 @@ export function BatchWorkspace({
 function applyEvent(
   line: string,
   setItems: React.Dispatch<React.SetStateAction<BatchItem[]>>,
+  setSources: React.Dispatch<React.SetStateAction<SourceRef[]>>,
 ) {
   let event: BatchEvent;
   try {
@@ -405,6 +428,11 @@ function applyEvent(
             : item,
         ),
       );
+      break;
+    case "context":
+      // Retrieved for the whole batch, so it is shown once above the answers
+      // rather than repeated on every item.
+      setSources(event.sources);
       break;
     default:
       break;

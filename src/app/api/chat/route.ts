@@ -10,6 +10,7 @@ import {
 } from "@/lib/models";
 import { parseBatch, threadTitle } from "@/lib/batch";
 import { BATCHER_SYSTEM_PROMPT } from "@/lib/prompt";
+import { retrieveContext, contextTokenCost } from "@/lib/retrieval";
 
 /**
  * Batch chat endpoint.
@@ -21,7 +22,7 @@ import { BATCHER_SYSTEM_PROMPT } from "@/lib/prompt";
  *
  * Contract
  *   POST /api/chat
- *   body: { threadId?: string, workspaceId?: string, input: string }
+ *   body: { threadId?: string, workspaceId?: string, input: string, useContext?: boolean }
  *   200 : application/x-ndjson, one JSON object per line (see BatchEvent)
  *   400 : empty input, bad JSON
  *   401 : not signed in
@@ -32,6 +33,7 @@ import { BATCHER_SYSTEM_PROMPT } from "@/lib/prompt";
  *
  * Event stream
  *   {type:"batch_start", threadId, items}
+ *   {type:"context", sources, memories, mode, tokens}   (once, after batch_start)
  *   {type:"item_start", index}
  *   {type:"delta", index, text}          (repeated)
  *   {type:"item_done", index, provider, model, usedFallback}
@@ -63,7 +65,12 @@ export async function POST(request: NextRequest) {
   }
 
   // --- 2. Parse + validate -------------------------------------------------
-  let body: { threadId?: string; workspaceId?: string; input?: string };
+  let body: {
+    threadId?: string;
+    workspaceId?: string;
+    input?: string;
+    useContext?: boolean;
+  };
   try {
     body = await request.json();
   } catch {
@@ -217,6 +224,40 @@ export async function POST(request: NextRequest) {
   const encoder = new TextEncoder();
   const startedAt = Date.now();
 
+  // --- 7b. Retrieve the team's own context, ONCE for the whole batch --------
+  // One embedding call for the joined questions, not one per item: a batch of
+  // eight would otherwise spend the whole free tier's per-minute budget on
+  // lookups before a single token streamed. See src/lib/retrieval.ts.
+  const wantsContext = body.useContext !== false;
+  const context = wantsContext
+    ? await retrieveContext({
+        supabase,
+        workspaceId: resolvedWorkspaceId,
+        query: items.join("\n"),
+      })
+    : null;
+
+  const systemPrompt = context?.block
+    ? `${BATCHER_SYSTEM_PROMPT}\n\n${context.block}`
+    : BATCHER_SYSTEM_PROMPT;
+
+  // The retrieval query is embedded once, so it is logged once — as embedding
+  // usage, not as per-item input tokens.
+  if (context && context.embeddingTokens > 0) {
+    await supabase.from("usage_events").insert({
+      user_id: user.id,
+      workspace_id: resolvedWorkspaceId,
+      thread_id: resolvedThreadId,
+      provider: "google",
+      model: process.env.BATCHER_EMBEDDING_MODEL?.trim() || "gemini-embedding-001",
+      items: 0,
+      input_tokens: context.embeddingTokens,
+      output_tokens: 0,
+      embedding_tokens: context.embeddingTokens,
+      fallback_used: false,
+    });
+  }
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const emit = (event: unknown) => {
@@ -231,6 +272,19 @@ export async function POST(request: NextRequest) {
         threadId: resolvedThreadId,
         items: items.length,
       });
+
+      // Tell the client what was pulled in, so an answer that used a document
+      // can show which one. Sent before any item so the chips appear
+      // immediately rather than popping in at the end.
+      if (context) {
+        emit({
+          type: "context",
+          sources: context.sources,
+          memories: context.memories,
+          mode: context.mode,
+          tokens: contextTokenCost(context),
+        });
+      }
 
       for (let index = 0; index < items.length; index += 1) {
         if (request.signal.aborted) break;
@@ -247,7 +301,7 @@ export async function POST(request: NextRequest) {
           try {
             const result = streamText({
               model: choice.model,
-              system: BATCHER_SYSTEM_PROMPT,
+              system: systemPrompt,
               prompt: `Batch question ${index + 1} of ${items.length}:\n\n${question}`,
               maxOutputTokens: MAX_OUTPUT_TOKENS,
               temperature: 0.6,

@@ -1,11 +1,13 @@
 "use client";
 
-import type { BatchItem } from "@/lib/types";
+import type { BatchItem, SourceRef } from "@/lib/types";
 import { Markdown } from "./markdown";
 
 interface Props {
   items: BatchItem[];
   running: boolean;
+  /** Documents pulled in for this batch, shown once above the answers. */
+  sources?: SourceRef[];
   onSuggestion: (text: string) => void;
 }
 
@@ -46,7 +48,7 @@ const EXAMPLES: { label: string; text: string }[] = [
  * as one long reply: queued items are dimmed, the active one shows a caret, and
  * finished ones keep their provider badge.
  */
-export function BatchResults({ items, running, onSuggestion }: Props) {
+export function BatchResults({ items, running, sources, onSuggestion }: Props) {
   const done = items.filter((item) => item.status === "done").length;
 
   if (items.length === 0) {
@@ -105,6 +107,29 @@ export function BatchResults({ items, running, onSuggestion }: Props) {
           )}
         </div>
 
+        {/* Which of your documents were fed in. Shown once, not per item —
+            retrieval happens for the batch, not for each question. */}
+        {sources && sources.length > 0 && (
+          <div className="mb-4 flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">
+              Using
+            </span>
+            {sources.map((source) => (
+              <span
+                key={source.documentId}
+                title={`Similarity ${(source.similarity * 100).toFixed(0)}%`}
+                className="inline-flex max-w-[16rem] items-center gap-1 rounded-full border border-teal-400/20 bg-teal-400/[0.07] px-2 py-0.5 text-[11px] text-teal-200/90"
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <path d="M14 2v6h6" />
+                </svg>
+                <span className="truncate">{source.title}</span>
+              </span>
+            ))}
+          </div>
+        )}
+
         <ol className="space-y-7">
           {items.map((item) => (
             <li key={item.index} className="flex gap-3">
@@ -133,10 +158,7 @@ export function BatchResults({ items, running, onSuggestion }: Props) {
                   )}
 
                   {item.status === "answering" && !item.answer && (
-                    <div
-                      className="flex items-center gap-1 py-1"
-                      aria-label="Thinking"
-                    >
+                    <div className="flex items-center gap-1 py-1" aria-label="Thinking">
                       {[0, 1, 2].map((i) => (
                         <span
                           key={i}
@@ -165,9 +187,7 @@ export function BatchResults({ items, running, onSuggestion }: Props) {
 
                   {item.status === "done" && item.provider && (
                     <p className="mt-1.5 text-[11px] text-zinc-600">
-                      {item.provider === "google"
-                        ? "Gemini Flash"
-                        : "Llama (Groq)"}
+                      {item.provider === "google" ? "Gemini Flash" : "Llama (Groq)"}
                       {item.model ? ` · ${item.model}` : ""}
                       {item.usedFallback ? " · fallback" : ""}
                     </p>
