@@ -42,9 +42,45 @@ export interface BatchItem {
   error?: string;
 }
 
+/** A document passage that was fed into the batch as context. */
+export interface SourceRef {
+  title: string;
+  documentId: string;
+  part: number;
+  similarity: number;
+}
+
+/** A document in the workspace's library. */
+export interface KnowledgeDocument {
+  id: string;
+  title: string;
+  mime_type: string;
+  size_bytes: number;
+  chunk_count: number;
+  status: "pending" | "ready" | "failed";
+  error: string | null;
+  created_at: string;
+}
+
+/** A durable fact Batcher should keep in mind. */
+export interface MemoryRow {
+  id: string;
+  content: string;
+  kind: string;
+  source: "manual" | "auto";
+  created_at: string;
+}
+
 /** NDJSON frames emitted by POST /api/chat. */
 export type BatchEvent =
   | { type: "batch_start"; threadId: string; items: number }
+  | {
+      type: "context";
+      sources: SourceRef[];
+      memories: string[];
+      mode: "vector" | "keyword" | "none";
+      tokens: number;
+    }
   | { type: "item_start"; index: number }
   | { type: "delta"; index: number; text: string }
   | {
